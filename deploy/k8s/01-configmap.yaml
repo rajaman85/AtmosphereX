@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: atmospherex-config
+  namespace: atmospherex
+  labels:
+    app.kubernetes.io/name: atmospherex
+    app.kubernetes.io/component: config
+data:
+  APP_ENV: "production"
+  DEBUG: "false"
+  BACKEND_HOST: "0.0.0.0"
+  BACKEND_PORT: "8000"
+  CORS_ORIGINS: "http://localhost,http://localhost:3000,http://atmospherex.local"
+  DATABASE_HOST: "postgres-service"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "atmospherex_db"
+  REDIS_URL: "redis://redis-service:6379/0"
+  OPEN_METEO_BASE_URL: "https://api.open-meteo.com/v1"
+  OPEN_METEO_GEO_URL: "https://geocoding-api.open-meteo.com/v1"
+  OPEN_METEO_AIR_URL: "https://air-quality-api.open-meteo.com/v1"
+  CACHE_TTL_CURRENT: "600"
+  CACHE_TTL_FORECAST: "1800"
+  CACHE_TTL_HISTORICAL: "21600"
+  CACHE_TTL_AIR_QUALITY: "900"
+  CACHE_TTL_GEOCODE: "86400"

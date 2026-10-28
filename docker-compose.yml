@@ -1,0 +1,134 @@
+services:
+  # ─── PostgreSQL ───────────────────────────────────────────
+  weather-db:
+    image: postgres:16-alpine
+    container_name: atmospherex-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-atmospherex}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-atmospherex_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-atmospherex_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-atmospherex}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - atmospherex-net
+
+  # ─── Redis ────────────────────────────────────────────────
+  weather-redis:
+    image: redis:7.4-alpine
+    container_name: atmospherex-redis
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - atmospherex-net
+
+  # ─── Backend API ──────────────────────────────────────────
+  weather-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: atmospherex-backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-atmospherex}:${POSTGRES_PASSWORD:-atmospherex_pass}@weather-db:5432/${POSTGRES_DB:-atmospherex_db}
+      REDIS_URL: redis://weather-redis:6379/0
+      DEBUG: ${DEBUG:-false}
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://weather-frontend:80
+    depends_on:
+      weather-db:
+        condition: service_healthy
+      weather-redis:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 45s
+      retries: 3
+    networks:
+      - atmospherex-net
+    labels:
+      - "prometheus.io/scrape=true"
+      - "prometheus.io/port=8000"
+      - "prometheus.io/path=/api/v1/metrics"
+
+  # ─── Frontend ─────────────────────────────────────────────
+  weather-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: atmospherex-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - weather-backend
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80/nginx-health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - atmospherex-net
+
+  # ─── Prometheus ───────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: atmospherex-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./deploy/docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.enable-lifecycle"
+    ports:
+      - "9090:9090"
+    networks:
+      - atmospherex-net
+
+  # ─── Grafana ──────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: atmospherex-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-atmospherex123}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./deploy/docker/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - atmospherex-net
+
+volumes:
+  postgres_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  atmospherex-net:
+    driver: bridge

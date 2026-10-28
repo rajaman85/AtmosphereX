@@ -1,0 +1,17 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: atmospherex-backend-monitor
+  namespace: atmospherex
+  labels:
+    app.kubernetes.io/name: atmospherex
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: weather-backend
+  endpoints:
+    - port: http
+      path: /api/v1/metrics
+      interval: 15s
+      scrapeTimeout: 10s

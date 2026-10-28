@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: atmospherex
+  labels:
+    app.kubernetes.io/name: atmospherex
+    app.kubernetes.io/part-of: atmospherex-platform
