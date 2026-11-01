@@ -18,6 +18,7 @@ import {
 import { useWeatherStore } from '../store/weatherStore'
 import {
   Layers,
+  Compass,
   MapPin,
   Trash2,
   Navigation,
