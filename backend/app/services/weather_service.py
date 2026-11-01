@@ -1,3 +1,4 @@
+import re
 import httpx
 import logging
 from typing import List, Optional, Tuple
@@ -48,7 +49,34 @@ def calculate_reliability_score(data: dict, age_seconds: int = 0) -> float:
     return max(0.0, min(100.0, round(score, 1)))
 
 
+def parse_coordinates(s: str) -> Optional[Tuple[float, float]]:
+    if not s:
+        return None
+    match = re.match(r"^([+-]?\d+(?:\.\d+)?)\s*,\s*([+-]?\d+(?:\.\d+)?)$", s.strip())
+    if match:
+        try:
+            lat = float(match.group(1))
+            lon = float(match.group(2))
+            if -90 <= lat <= 90 and -180 <= lon <= 180:
+                return lat, lon
+        except ValueError:
+            pass
+    return None
+
+
+def format_coords_name(lat: float, lon: float) -> Tuple[str, str]:
+    lat_str = f"{abs(lat):.2f}°{'N' if lat >= 0 else 'S'}"
+    lon_str = f"{abs(lon):.2f}°{'E' if lon >= 0 else 'W'}"
+    return f"{lat_str}, {lon_str}", "Coordinates"
+
+
 async def get_city_coordinates(city: str) -> Tuple[float, float, str, str, str]:
+    coords = parse_coordinates(city)
+    if coords:
+        lat, lon = coords
+        name, country = format_coords_name(lat, lon)
+        return lat, lon, name, country, "auto"
+
     results = await geocode_city(city)
     if not results:
         raise ValueError(f"City not found: {city}")
@@ -56,10 +84,38 @@ async def get_city_coordinates(city: str) -> Tuple[float, float, str, str, str]:
     return first.latitude, first.longitude, first.name, first.country, first.timezone or "UTC"
 
 
-async def get_current_weather(city: str) -> CurrentWeather:
+async def get_current_weather(
+    city: Optional[str] = None,
+    lat: Optional[float] = None,
+    lon: Optional[float] = None,
+    name: Optional[str] = None,
+    country: Optional[str] = None,
+) -> CurrentWeather:
     global last_successful_api_call, api_error_count, api_request_count
 
-    cache_key = f"weather:current:{city.lower().strip()}"
+    if lat is not None and lon is not None:
+        target_lat = float(lat)
+        target_lon = float(lon)
+        def_name, def_country = format_coords_name(target_lat, target_lon)
+        city_name = name or def_name
+        country_name = country or def_country
+        timezone_str = "auto"
+        cache_key = f"weather:coords:{round(target_lat, 3)}:{round(target_lon, 3)}"
+    elif city:
+        coords = parse_coordinates(city)
+        if coords:
+            target_lat, target_lon = coords
+            def_name, def_country = format_coords_name(target_lat, target_lon)
+            city_name = name or def_name
+            country_name = country or def_country
+            timezone_str = "auto"
+            cache_key = f"weather:coords:{round(target_lat, 3)}:{round(target_lon, 3)}"
+        else:
+            cache_key = f"weather:current:{city.lower().strip()}"
+            target_lat, target_lon, city_name, country_name, timezone_str = await get_city_coordinates(city)
+    else:
+        raise ValueError("Either city or lat/lon coordinates must be provided.")
+
     cached = cache_get(cache_key)
     cache_age = 0
 
@@ -78,11 +134,9 @@ async def get_current_weather(city: str) -> CurrentWeather:
         except Exception:
             pass
 
-    lat, lon, city_name, country, timezone_str = await get_city_coordinates(city)
-
     params = {
-        "latitude": lat,
-        "longitude": lon,
+        "latitude": target_lat,
+        "longitude": target_lon,
         "current": [
             "temperature_2m", "relative_humidity_2m", "apparent_temperature",
             "is_day", "precipitation", "weather_code", "cloud_cover",
@@ -104,12 +158,13 @@ async def get_current_weather(city: str) -> CurrentWeather:
         last_successful_api_call = datetime.now(timezone.utc).isoformat()
     except Exception as e:
         api_error_count += 1
-        logger.error(f"Weather API error for {city}: {e}")
+        label = city or f"{target_lat},{target_lon}"
+        logger.error(f"Weather API error for {label}: {e}")
         if cached:
             cached["cache_age_seconds"] = cache_age
             cached["reliability_score"] = calculate_reliability_score(cached, cache_age)
             return CurrentWeather(**cached)
-        raise Exception(f"Weather data unavailable for {city}: {e}")
+        raise Exception(f"Weather data unavailable for {label}: {e}")
 
     current = data.get("current", {})
     daily = data.get("daily", {})
@@ -126,12 +181,16 @@ async def get_current_weather(city: str) -> CurrentWeather:
     if daily.get("uv_index_max") and len(daily["uv_index_max"]) > 0:
         uv_raw = daily["uv_index_max"][0]
 
+    resolved_tz = data.get("timezone", timezone_str)
+    if country_name == "Coordinates" and "/" in resolved_tz:
+        country_name = resolved_tz.split("/")[0]
+
     weather_data = {
         "city": city_name,
-        "country": country,
-        "latitude": lat,
-        "longitude": lon,
-        "timezone": timezone_str,
+        "country": country_name,
+        "latitude": target_lat,
+        "longitude": target_lon,
+        "timezone": resolved_tz,
         "temperature": round(temp, 1),
         "feels_like": round(feels_like, 1),
         "humidity": humidity,

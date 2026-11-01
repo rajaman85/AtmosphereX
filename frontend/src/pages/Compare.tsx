@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { compareApi } from '../services/api'
 import type { CurrentWeather, CityResult } from '../types'
 import { GlassCard, ErrorCard, LoadingCard, DataAttribution } from '../components/ui/GlassCard'
@@ -14,10 +15,29 @@ import { clsx } from 'clsx'
 const COLORS = ['#38bdf8', '#2dd4bf', '#a78bfa', '#fb923c']
 
 export function Compare() {
+  const [searchParams] = useSearchParams()
   const [cities, setCities] = useState<string[]>([])
   const [data, setData] = useState<CurrentWeather[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const qCities = searchParams.get('cities')
+    if (qCities) {
+      const parsed = qCities.split(',').map((c) => c.trim()).filter(Boolean).slice(0, 4)
+      if (parsed.length >= 2) {
+        setCities(parsed)
+        setLoading(true)
+        compareApi
+          .compare(parsed)
+          .then((res) => setData(res.cities))
+          .catch((err) => setError(err.message))
+          .finally(() => setLoading(false))
+      } else if (parsed.length === 1) {
+        setCities(parsed)
+      }
+    }
+  }, [searchParams])
 
   const addCity = (city: CityResult) => {
     if (cities.includes(city.name) || cities.length >= 4) return

@@ -94,6 +94,15 @@ export function tempColor(temp: number): string {
   return '#EF4444'
 }
 
+export function tempTextColor(temp: number): string {
+  if (temp < 0) return 'text-blue-300'
+  if (temp < 10) return 'text-blue-400'
+  if (temp < 20) return 'text-emerald-400'
+  if (temp < 30) return 'text-yellow-400'
+  if (temp < 38) return 'text-orange-400'
+  return 'text-red-400'
+}
+
 // Reliability score color
 export function reliabilityColor(score?: number): string {
   if (!score) return 'text-gray-400'

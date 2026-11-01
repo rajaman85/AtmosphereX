@@ -1,3 +1,4 @@
+from typing import Optional
 from fastapi import APIRouter, Query, HTTPException
 from app.services.weather_service import get_current_weather, get_forecast, get_historical_weather
 from app.schemas.schemas import CurrentWeather, ForecastResponse, HistoricalResponse
@@ -9,10 +10,21 @@ router = APIRouter()
 
 
 @router.get("/current", response_model=CurrentWeather)
-async def current_weather(city: str = Query(..., min_length=1, max_length=100)):
-    """Get real-time weather for a city."""
+async def current_weather(
+    city: Optional[str] = Query(None, min_length=1, max_length=100),
+    lat: Optional[float] = Query(None, ge=-90, le=90),
+    lon: Optional[float] = Query(None, ge=-180, le=180),
+    name: Optional[str] = Query(None, max_length=100),
+    country: Optional[str] = Query(None, max_length=100),
+):
+    """Get real-time weather for a city or coordinates."""
+    if not city and (lat is None or lon is None):
+        raise HTTPException(
+            status_code=422,
+            detail="Either 'city' or both 'lat' and 'lon' must be provided.",
+        )
     try:
-        return await get_current_weather(city)
+        return await get_current_weather(city=city, lat=lat, lon=lon, name=name, country=country)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:

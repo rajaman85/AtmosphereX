@@ -32,6 +32,16 @@ export const weatherApi = {
   getCurrent: (city: string) =>
     api.get<CurrentWeather>('/weather/current', { params: { city } }).then(r => r.data),
 
+  getByCoords: (lat: number, lon: number, name?: string, country?: string) =>
+    api.get<CurrentWeather>('/weather/current', {
+      params: {
+        lat,
+        lon,
+        ...(name ? { name } : {}),
+        ...(country ? { country } : {}),
+      },
+    }).then(r => r.data),
+
   getForecast: (city: string, days = 7) =>
     api.get<ForecastResponse>('/weather/forecast', { params: { city, days } }).then(r => r.data),
 

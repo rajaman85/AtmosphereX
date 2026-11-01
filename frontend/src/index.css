@@ -68,15 +68,80 @@
   .status-dot.error { @apply bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.5)]; }
 }
 
-/* Leaflet dark overrides */
+/* Leaflet dark overrides & popup styling */
 .leaflet-container {
   background: #060d1f !important;
+  font-family: inherit;
 }
-.leaflet-tile {
+.dark-osm-filter .leaflet-tile {
   filter: brightness(0.7) saturate(0.8) hue-rotate(180deg) invert(0.85);
 }
 .leaflet-control-attribution {
-  @apply bg-navy-900/90 text-white/50 text-xs;
+  background: rgba(10, 21, 53, 0.85) !important;
+  color: rgba(255, 255, 255, 0.4) !important;
+  font-size: 11px !important;
+  border-top-left-radius: 6px;
+}
+.leaflet-control-attribution a {
+  color: #38bdf8 !important;
+}
+
+/* Custom dark glass popup */
+.leaflet-popup-content-wrapper {
+  background: rgba(10, 21, 53, 0.95) !important;
+  backdrop-filter: blur(16px) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 0 20px rgba(56, 189, 248, 0.25) !important;
+  border-radius: 16px !important;
+  padding: 0 !important;
+}
+.leaflet-popup-tip {
+  background: rgba(10, 21, 53, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+}
+.leaflet-popup-content {
+  margin: 14px 16px !important;
+  line-height: 1.5 !important;
+}
+.leaflet-container a.leaflet-popup-close-button {
+  color: rgba(255, 255, 255, 0.6) !important;
+  padding: 8px 10px !important;
+  font-size: 16px !important;
+}
+.leaflet-container a.leaflet-popup-close-button:hover {
+  color: #38bdf8 !important;
+}
+
+/* Custom Weather Map Marker Pin */
+.weather-marker-pin {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(10, 21, 53, 0.92);
+  backdrop-filter: blur(8px);
+  border: 1.5px solid rgba(56, 189, 248, 0.5);
+  border-radius: 9999px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4), 0 0 10px rgba(56, 189, 248, 0.3);
+  color: white;
+  font-weight: 600;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+  transform: translate(-50%, -50%);
+  transition: all 0.2s ease;
+}
+.weather-marker-pin:hover {
+  transform: translate(-50%, -50%) scale(1.1);
+  border-color: #38bdf8;
+  box-shadow: 0 6px 20px rgba(56, 189, 248, 0.5);
+  z-index: 1000 !important;
+}
+.weather-marker-pin.selected {
+  border-color: #2dd4bf;
+  box-shadow: 0 0 20px rgba(45, 212, 191, 0.6);
+  background: rgba(14, 165, 233, 0.3);
 }
 
 /* Recharts custom */

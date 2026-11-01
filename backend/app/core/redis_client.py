@@ -1,4 +1,7 @@
-﻿import redis
+try:
+    import redis
+except ImportError:
+    redis = None
 import json
 import logging
 from typing import Optional, Any
@@ -8,15 +11,17 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 # Global Redis client
-_redis_client: Optional[redis.Redis] = None
+_redis_client = None
 
 # Metrics counters
 cache_hits = 0
 cache_misses = 0
 
 
-def get_redis() -> Optional[redis.Redis]:
+def get_redis():
     global _redis_client
+    if redis is None:
+        return None
     if _redis_client is None:
         try:
             _redis_client = redis.from_url(
